@@ -1,0 +1,176 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import GridSearchCV
+import matplotlib.pyplot as plt
+import matplotlib
+
+filepath = '/content/train.csv'
+
+def createBestClassifier(filename):
+    # parameters to play with
+    SEED = 69
+    TEST_SIZE = 0.25
+    MAX_P = 5
+    MAX_N = 10
+
+    # import csv
+    data = pd.read_csv(filename)
+    data = data.drop(['Cabin', 'Ticket', 'Name', 'PassengerId', 'Embarked'], axis=1)
+    data = data[data['Age'].notna()]
+
+    # data prep
+    tmp = data[data.columns[:-1:]].to_numpy()
+    y = data[data.columns[-1::]].to_numpy().flatten()
+
+    # encoding
+    X_encoder = OrdinalEncoder()
+    y_encoder = LabelEncoder()
+    X = X_encoder.fit(tmp).transform(tmp)
+    y = y_encoder.fit(y).transform(y)
+    X[:,2] = tmp[:,2]
+    X[:,5] = tmp[:,5]
+
+    # train and test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=SEED)
+
+    # grid search to find best parameters (also stores best model, params, score)
+    # NOTE: this will take a long time to run!
+    params = {'n_neighbors': [x+1 for x in range(MAX_N)],
+                        'p': [x+1 for x in range(MAX_P)]}
+
+    gs = GridSearchCV(KNeighborsClassifier(), params)
+    gs.fit(X_train, y_train)
+
+    # print best parameters and best score
+    print("Best P:", gs.best_params_['p'])
+    print("Best N:", gs.best_params_['n_neighbors'])
+    print("Score with best P and N:",gs.best_score_)
+
+    ## plot results
+    n_neighbors = gs.cv_results_['param_n_neighbors']
+    p_vals = gs.cv_results_['param_p']
+    scores = gs.cv_results_['mean_test_score']
+
+    # set up plot
+    ax = plt.axes(projection='3d')
+
+    # store data and create boundaries
+    x = n_neighbors
+    y = p_vals
+    z = [min(scores) for i in scores]
+    dx = [1 for i in range(len(x))]
+    dy = [1 for i in range(len(y))]
+    dz = [i - min(scores) for i in scores]
+    ax.set_zlim(min(scores), max(scores))
+
+    # create plot, name axes
+    ax.bar3d(x, y, z, dx, dy, dz)
+    font = 20
+    pad = 10
+    ax.set_xlabel('N', fontsize=font, labelpad=pad)
+    ax.set_ylabel('P', fontsize=font, labelpad=pad)
+    ax.set_zlabel('Score', fontsize=font, labelpad=pad)
+
+    # resize, show plot
+    plt.subplots_adjust(right=12, left=10, bottom=10, top=12)
+    plt.show()
+
+# Naive Bayes
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import warnings
+from scipy.stats.stats import pearsonr
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, recall_score, precision_score
+warnings.filterwarnings("ignore")
+
+def cross_validate(estimator, train, validation):
+    X_train = train[0]
+    Y_train = train[1]
+    X_val = validation[0]
+    Y_val = validation[1]
+    train_predictions = classifier.predict(X_train)
+    train_accuracy = accuracy_score(train_predictions, Y_train)
+    train_recall = recall_score(train_predictions, Y_train)
+    train_precision = precision_score(train_predictions, Y_train)
+
+    val_predictions = classifier.predict(X_val)
+    val_accuracy = accuracy_score(val_predictions, Y_val)
+    val_recall = recall_score(val_predictions, Y_val)
+    val_precision = precision_score(val_predictions, Y_val)
+
+    print('Accuracy  Train: %.2f, Validation: %.2f' % (train_accuracy, val_accuracy))
+
+train_raw = pd.read_csv('/content/train.csv')
+test_raw = pd.read_csv('/content/test.csv')
+test_ids = test_raw['PassengerId'].values
+
+# Join data to analyze and process the set as one
+train_raw['train'] = 1
+test_raw['train'] = 0
+data = train_raw.append(test_raw, sort=False)
+
+features = ['Age', 'Embarked', 'Fare', 'Parch', 'Pclass', 'Sex', 'SibSp']
+target = 'Survived'
+
+data = data[features + [target] + ['train']]
+# Categorical values transformed into numeric
+data['Sex'] = data['Sex'].replace(["female", "male"], [0, 1])
+data['Embarked'] = data['Embarked'].replace(['S', 'C', 'Q'], [1, 2, 3])
+data['Age'] = pd.qcut(data['Age'], 10, labels=False)
+
+# Split train and test
+train = data.query('train == 1')+
+test = data.query('train == 0')
+
+# Drop nas
+train.dropna(axis=0, inplace=True)
+labels = train[target].values
+
+columns = train[features + [target]].columns.tolist()
+nColumns = len(columns)
+result = pd.DataFrame(np.zeros((nColumns, nColumns)), columns=columns)
+
+# Show correlation matrix for features
+for col_a in range(nColumns):
+    for col_b in range(nColumns):
+        result.iloc[[col_a], [col_b]] = pearsonr(train.loc[:, columns[col_a]], train.loc[:,  columns[col_b]])[0]
+        
+fig, ax = plt.subplots(figsize=(10,10))
+ax = sns.heatmap(result, yticklabels=columns, vmin=-1, vmax=1, annot=True, fmt='.2f', linewidths=.2)
+ax.set_title('PCC - Pearson correlation coefficient')
+plt.show()
+
+continuous_numeric_features = ['Age', 'Fare', 'Parch', 'SibSp']
+
+train.drop(['train', target, 'Pclass'], axis=1, inplace=True)
+test.drop(['train', target, 'Pclass'], axis=1, inplace=True)
+
+X_train, X_val, Y_train, Y_val = train_test_split(train, labels, test_size=0.2, random_state=1)
+
+X_train1, X_train2, Y_train1, Y_train2 = train_test_split(X_train, Y_train, test_size=0.3, random_state=12)
+
+classifier = GaussianNB()
+
+classifier.fit(X_train2, Y_train2)
+
+classifier.partial_fit(X_train1, Y_train1)
+
+print('Accuracy with training data:')
+cross_validate(classifier, (X_train, Y_train), (X_val, Y_val))
+
+test.fillna(test.mean(), inplace=True)
+
+test_predictions = classifier.predict(test)
+submission = pd.DataFrame({'PassengerId': test_ids})
+submission['Survived'] = test_predictions.astype('int')
+submission.to_csv('submission.csv', index=False)
+
+submission.head(10)
