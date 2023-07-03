@@ -1,0 +1,153 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import GridSearchCV
+from scipy.stats.stats import pearsonr
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, recall_score, precision_score
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+import matplotlib
+
+filepath = '/content/DSCapstoneKaggleTrain.csv'
+test = pd.read_csv('/content/DSCapstoneKaggleTest.csv')
+data = pd.read_csv(filepath)
+data.head(5)
+data.describe()
+# print(data.feature_names)
+
+# data.columns = data.feature_names
+#Dropping the 'Survived' column
+X=data.drop(['class'],axis=1)
+y=data['class']
+
+#X_testdata = test.drop(['class'],axis=1)
+#y_testdata = test['class']
+
+data_dmatrix = xgb.DMatrix(data=X,label=y)
+
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=123)
+test.head(5)
+
+#Defining the parameters to search within
+param_grid = {
+'n_estimators': range(6, 10),
+'max_depth': range(3, 8),
+'learning_rate': [.2, .3, .4],
+'colsample_bytree': [.7, .8, .9, 1]
+}
+#Specifying our classifier
+xgb = xgb.XGBClassifier()
+#Searching for the best parameters
+g_search = GridSearchCV(estimator = xgb, param_grid = param_grid,
+cv = 3, n_jobs = 1, verbose = 0, return_train_score=True)
+#Fitting the model using best parameters found
+g_search.fit(X_train, y_train)
+#Printing the best parameters found
+print(g_search.best_params_)
+
+g_search.score(X_test,y_test)
+
+class_ = g_search.predict(test)
+
+submission = pd.DataFrame(test['id'])
+
+submission['class'] = class_.astype('int')
+submission.to_csv('submission.csv', index=False)
+
+submission.head(50)
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import warnings
+from scipy.stats.stats import pearsonr
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, recall_score, precision_score
+warnings.filterwarnings("ignore")
+
+def cross_validate(estimator, train, validation):
+    X_train = train[0]
+    Y_train = train[1]
+    X_val = validation[0]
+    Y_val = validation[1]
+    train_predictions = classifier.predict(X_train)
+    train_accuracy = accuracy_score(train_predictions, Y_train)
+    train_recall = recall_score(train_predictions, Y_train)
+    train_precision = precision_score(train_predictions, Y_train)
+
+    val_predictions = classifier.predict(X_val)
+    val_accuracy = accuracy_score(val_predictions, Y_val)
+    val_recall = recall_score(val_predictions, Y_val)
+    val_precision = precision_score(val_predictions, Y_val)
+
+    print('Accuracy  Train: %.2f, Validation: %.2f' % (train_accuracy, val_accuracy))
+
+train = pd.read_csv('/content/DSCapstoneKaggleTrain.csv')
+test = pd.read_csv('/content/DSCapstoneKaggleTest.csv')
+
+X=train.drop(['class'],axis=1)
+y=train['class']
+
+labels = train['class'].values
+
+X_train, X_val, Y_train, Y_val = train_test_split(X, labels, test_size=0.2, random_state=1)
+
+X_train1, X_train2, Y_train1, Y_train2 = train_test_split(X_train, Y_train, test_size=0.3, random_state=12)
+
+classifier = GaussianNB()
+
+classifier.fit(X_train2, Y_train2)
+
+classifier.partial_fit(X_train1, Y_train1)
+
+print('Accuracy with training data:')
+cross_validate(classifier, (X_train, Y_train), (X_val, Y_val))
+
+
+
+preds = classifier.predict(test)
+submission = pd.DataFrame(test['id'])
+
+submission['class'] = preds.astype('int')
+submission.to_csv('bayes.csv', index=False)
+
+submission.head(50)
+
+from numpy import mean
+from numpy import std
+from sklearn.datasets import make_classification
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.ensemble import BaggingClassifier
+# define dataset
+train = pd.read_csv('/content/DSCapstoneKaggleTrain.csv')
+test = pd.read_csv('/content/DSCapstoneKaggleTest.csv')
+
+X=train.drop(['class'],axis=1)
+y=train['class']
+# define the model
+ensemble = BaggingClassifier(bootstrap=False, max_features=10)
+# evaluate the model
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+n_scores = cross_val_score(ensemble, X, y, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
+# report performance
+print('Accuracy: %.3f (%.3f)' % (mean(n_scores), std(n_scores)))
+
+ensemble.fit(test, )
+preds = ensemble.predict(test)
+submission = pd.DataFrame(test['id'])
+
+submission['class'] = preds.astype('int')
+submission.to_csv('ensemble.csv', index=False)
+
+submission.head(50)
