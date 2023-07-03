@@ -1,0 +1,47 @@
+import pandas as pd
+from pandas.core.dtypes.cast import convert_dtypes
+import sklearn
+from sklearn import tree
+import numpy as np
+from sklearn.model_selection import train_test_split
+import graphviz
+import matplotlib as plt
+
+# Here we import the dataset and remove columns we deem unnecessary and/or think their data would bleed into other variables.
+data = pd.read_csv("/content/crimedata.csv")
+cols_delete = [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 16, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+    49, 50, 51, 53, 54, 55, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
+    90, 91, 93, 94, 95, 96, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
+    127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145]
+total = list(range(0,147))
+diff = [x for x in total if x not in cols_delete]
+orig = data.copy().to_numpy()
+data.drop(data.columns[cols_delete], axis=1, inplace=True)
+
+# Here we replace the qustion marks in the data with NA's and then interpolate those NA values by imputing them with the mean of the rest of the data.
+# This means that our model will include those explanatory variables that have large amounts of NA's instead of just removing them completely.
+# By using more features, we can increase the accuracy and predictive power of our model as opposed to simply throwing out those variables
+data = data.replace('?', np.nan)
+data = data.apply(pd.to_numeric, errors='coerce')
+for i in data.columns:
+    data[i].fillna(value=data[i].mean(), inplace=True)
+data = data.to_numpy()
+
+# Splitting explanatory and response variables
+y = data[::,-1::]
+X = data[::,:-1:]
+
+# Splitting data into training and testing sets for the model to work with
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=44)
+
+# Here we create the shell of the decision tree model and then fit our model to the data, minimizing the number of samples at every leaf node. This smooths out the model,
+# making sure it doesn't overfit
+model = tree.DecisionTreeRegressor(random_state=44, min_samples_leaf=5, min_samples_split=125)
+model.fit(X_train, y_train)
+print(model.score(X_test, y_test))
+
+# Finally, we visualize the tree with all of its branches and nodes
+plot = tree.export_graphviz(model, out_file=None)
+graph = graphviz.Source(plot)
+graph.render("yeet")
