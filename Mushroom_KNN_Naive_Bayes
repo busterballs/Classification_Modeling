@@ -1,0 +1,106 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import GridSearchCV
+import matplotlib.pyplot as plt
+import matplotlib
+
+SHROOMZ = '/content/shroomz.csv'
+CARZ = '/content/car_evaluation.csv'
+
+def createBestClassifier(filename):
+    # parameters to play with
+    SEED = 69
+    TEST_SIZE = 0.25
+    MAX_P = 10
+    MAX_N = 10
+
+    # import csv
+    data = pd.read_csv(filename)
+
+    # data prep
+    X = data[data.columns[:-1:]].to_numpy()
+    y = data[data.columns[-1::]].to_numpy().flatten()
+
+    # encoding
+    X_encoder = OrdinalEncoder()
+    y_encoder = LabelEncoder()
+    X = X_encoder.fit(X).transform(X)
+    y = y_encoder.fit(y).transform(y)
+
+    # train and test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=SEED)
+
+    # grid search to find best parameters (also stores best model, params, score)
+    # NOTE: this will take a long time to run!
+    params = {'n_neighbors': [x+1 for x in range(MAX_N)],
+                        'p': [x+1 for x in range(MAX_P)]}
+
+    gs = GridSearchCV(KNeighborsClassifier(), params)
+    gs.fit(X_train, y_train)
+
+    # print best parameters and best score
+    print("Best P:", gs.best_params_['p'])
+    print("Best N:", gs.best_params_['n_neighbors'])
+    print("Score with best P and N:",gs.best_score_)
+
+    ## plot results
+    n_neighbors = gs.cv_results_['param_n_neighbors']
+    p_vals = gs.cv_results_['param_p']
+    scores = gs.cv_results_['mean_test_score']
+
+    # set up plot
+    ax = plt.axes(projection='3d')
+
+    # store data and create boundaries
+    x = n_neighbors
+    y = p_vals
+    z = [min(scores) for i in scores]
+    dx = [1 for i in range(len(x))]
+    dy = [1 for i in range(len(y))]
+    dz = [i - min(scores) for i in scores]
+    ax.set_zlim(min(scores), max(scores))
+
+    # create plot, name axes
+    ax.bar3d(x, y, z, dx, dy, dz)
+    font = 20
+    pad = 10
+    ax.set_xlabel('N', fontsize=font, labelpad=pad)
+    ax.set_ylabel('P', fontsize=font, labelpad=pad)
+    ax.set_zlabel('Score', fontsize=font, labelpad=pad)
+
+    # resize, show plot
+    plt.subplots_adjust(right=12, left=10, bottom=10, top=12)
+    plt.show()
+
+createBestClassifier(SHROOMZ)
+createBestClassifier(CARZ)
+
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+
+def NaiveBayes(filename):
+  data = pd.read_csv(filename)
+  # Split dataset into training set and test set
+  X = data[data.columns[:-1:]].to_numpy()
+  y = data[data.columns[-1::]].to_numpy().flatten()
+  X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=69)
+
+  from sklearn.naive_bayes import GaussianNB
+
+  #Create a Gaussian Classifier
+  gnb = GaussianNB()
+
+  #Train the model using the training sets
+  gnb.fit(X_train, y_train)
+
+  #Predict the response for test dataset
+  y_pred = gnb.predict(X_test)
+
+  # Model Accuracy, how often is the classifier correct?
+  print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+
+NaiveBayes(SHROOMZ)
+NaiveBayes(CARZ)
